@@ -5,7 +5,14 @@ from django.db import models
 from django.contrib.auth.models import AbstractUser
 
 class Usuarios(AbstractUser):
-   
+
+    STATUS_CHOICES = (
+            (1,'Activado'),
+            (2,'Desactivado'),
+    )
+
+    reset_password=models.IntegerField(choices=STATUS_CHOICES,default=2)
+    groups= models.CharField(default='Clientes',max_length=15)
     is_active = models.BooleanField(default = True)
     is_staff = models.BooleanField(default = False)
     is_superuser = models.BooleanField(default=False)

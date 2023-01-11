@@ -15,7 +15,7 @@ urlpatterns = [
     
     path('', include(router.urls)),
     path('crear/',views.CreateOrdersViews.as_view(),name= "Inreso Pedidos"),
-    path('buscar/<int:pk>',views.ListPedidosView.as_view(),name= "Listar Pedido"),
-    path('buscar/<int:pk>',views.UpdateOrderView.as_view(),name= "Editar Pedidos"),
+    path('',views.ListPedidosView.as_view(),name= "Listar Pedido"),
+    path('actualizar/(?<pk>/d+)/',views.UpdateOrderView.as_view(),name= "Editar Pedidos"),
    
 ]

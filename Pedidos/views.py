@@ -1,74 +1,89 @@
 from rest_framework.response import Response
 from rest_framework import status
-from Pedidos.models import Pedidos
-from .serializers import CreateOrdersSerializer, UpdateOrderSerializer
+from Pedidos.models import Pedidos, logs
+from .serializers import CreateOrdersSerializer, UpdateOrderSerializer, ListPedidosSerializer, CreateLogs
 from rest_framework import generics
-import django_filters.rest_framework
-from rest_framework.views import APIView
+from rest_framework import status
+from django_filters.rest_framework import DjangoFilterBackend
+from .permissions import CustomDjangoModelPermissions
+from django.shortcuts import get_object_or_404
 
 
 class CreateOrdersViews(generics.ListCreateAPIView):
 
-    Model= Pedidos
-    serializer_class= CreateOrdersSerializer
     queryset= Pedidos.objects.all()
-    
-    def post(self, request):
-        serializer = CreateOrdersSerializer(data=request.data)
+    serializer_class=CreateOrdersSerializer
+    permission_classes= [CustomDjangoModelPermissions]
+   
+    def post(self, request, pk=None, format=None):
+
+        serializer = CreateOrdersSerializer(data=request.POST)
         if serializer.is_valid():
             serializer.save()
-            return Response({"status": "success", "data": serializer.data}, status=status.HTTP_200_OK)
-        else:
-            return Response({"status": "error", "data": serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
+ 
+    """def get_serializer_context(self):
+        context = super().get_serializer_context()
+        context.update({"request": self.request.user})
+        print(context)
+        return context"""
+              
 
 class ListPedidosView(generics.ListAPIView):
 
         queryset = Pedidos.objects.all()
-        serializer_class=UpdateOrderSerializer
-        filter_backends = [django_filters.rest_framework.DjangoFilterBackend]
-        filterset_fields = ['estado_pedido']
-
-        def list(self, request):
-
-            try:
+        serializer_class= ListPedidosSerializer
+        filter_backends = [DjangoFilterBackend]
+        filterset_fields = ['estado_pedido', 'fecha_creado']
+        permission_classes= [CustomDjangoModelPermissions]
        
-                queryset = self.get_queryset()
-                serializer = UpdateOrderSerializer(queryset, many=True)
-                return Response(serializer.data)
-            except Pedidos.DoesNotExist:
 
-                return Response(status=status.HTTP_404_NOT_FOUND)
-
+             
 
 class UpdateOrderView(generics.RetrieveUpdateDestroyAPIView):
 
     queryset = Pedidos.objects.all()
     serializer_class=UpdateOrderSerializer
-
+    permission_classes= [CustomDjangoModelPermissions]
+    
+    
+  
    
-    def get(self, request):
+    def get(self, request, pk, *args, **kwargs):
 
         try:
-       
-            queryset = self.get_queryset()
-            serializer = UpdateOrderSerializer(queryset, many=True)
+          
+            queryset = Pedidos.objects.get(numero=pk)
+            serializer = UpdateOrderSerializer(queryset)
+            current_user=request.user
+
             return Response(serializer.data)
+
         except Pedidos.DoesNotExist:
 
                 return Response(status=status.HTTP_404_NOT_FOUND)
     
 
+    
+    def patch(self,instance, request, pk=None, format=None, *args, **kwargs):
 
-    def put(self, request, pk=None, format=None):
+        pk = self.kwargs.get('pk')
         serializer = UpdateOrderSerializer(data=request.POST)
-        if serializer.is_valid():
-            serializer.save()
+        save_allowance = get_object_or_404(Pedidos.objects.all(), pk=pk)
+        data = request.data.get('allowance')
+        serializer = UpdateOrderSerializer(instance=save_allowance,data=data,partial=True)
+        if serializer.is_valid(raise_exception=True):
+            allowance_saved=serializer.save()
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
 
-    def delete(self, request, pk, format=None):
+    def delete(self, request, pk, format=None, *args, **kwargs):
+        
+       
         pedido= Pedidos.objects.filter(pk=pk).first()
         if pedido:
             pedido.delete()
@@ -76,3 +91,15 @@ class UpdateOrderView(generics.RetrieveUpdateDestroyAPIView):
             return Response(serializer.data, status=status.HTTP_200_OK)
         return Response(status=status.HTTP_404_NOT_FOUND)
       
+    """def get_serializer_context(self):
+        user=self.request.user
+        ctx = super().get_serializer_context()
+        ctx['user'] = self.kwargs['user']
+        return ctx"""
+
+    def cxt(self,request,*args, **kwargs):
+
+        serializer = UpdateOrderSerializer(logs, context={'user': request.user})
+        serializer.data
+        
+        return serializer.data

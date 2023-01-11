@@ -1,7 +1,7 @@
 import datetime
 
-
-
+from rest_framework import status
+from rest_framework.response import Response
 from User.models import Usuarios 
 from rest_framework import serializers
 from rest_framework.validators import UniqueValidator
@@ -15,6 +15,7 @@ import jwt
 
 
 class RegisterSerializer(serializers.ModelSerializer):
+    
     email = serializers.EmailField(
             required=True,
             validators=[UniqueValidator(queryset=Usuarios.objects.all())]
@@ -67,26 +68,27 @@ class ResetpasswordSerializer(serializers.ModelSerializer):
 
       def validate_email(self, data):
 
-        try:
+            try:
 
-          email=Usuarios.objects.get(email=data)
+                email=Usuarios.objects.get(email=data)
+                return data
 
-          return data
+            except Usuarios.DoesNotExist:
 
-        except Usuarios.DoesNotExist:
-          raise serializers.ValidationError("El correo no es correcto")
+                raise serializers.ValidationError("El correo no es correcto")
 
-    
+      
        
       def create(self, validate_data): 
-        email=validate_data.get('email')
 
-        
-        key= "lgsus"
-        token = jwt.encode({ 'email': email }, "lgsus", algorithm="HS256")
-        
+            email=validate_data.get('email')
+            actualice_data=Usuarios.objects.update(
+                is_active=True
+            )
+            key= "lgsus"
+            token = jwt.encode({ 'email': email }, "lgsus", algorithm="HS256")
 
-        c= {
+            create_email= {
 					
 					'domain':'127.0.0.1:8000',
 					'site_name': 'LgsusTest',
@@ -95,17 +97,18 @@ class ResetpasswordSerializer(serializers.ModelSerializer):
 					'protocol': 'http',
 					}
 
-        send_mail(
+            send_mail(
           
-          subject= 'Reseto de contraseña',
-          message= '',
-          html_message= render_to_string('reset_password.html', c),
-          from_email=  'moreyalejandro1@gmail.com',
-          recipient_list= [email],
+            subject= 'Reseto de contraseña',
+            message= '',
+            html_message= render_to_string('reset_password.html', create_email),
+            from_email=  'moreyalejandro1@gmail.com',
+            recipient_list= [email],
           
-        )
+            )
        
-        return validate_data
+        
+            return validate_data
 
 class ChangePasswordSerializer(serializers.ModelSerializer):
 
@@ -122,16 +125,24 @@ class ChangePasswordSerializer(serializers.ModelSerializer):
         self.user = Usuarios.objects.get(email=payload['email'])
 
         if self.user.DoesNotExist:
+
             raise serializers.ValidationError({'El usuario no existe': _("El usuario solicitado no existe")})
 
+        if self.user.reset_password=="True":
 
-        if data['new_password1'] != data['new_password2']:
-            raise serializers.ValidationError({'new_password2': _("Las Contraseñas no coinciden")})
-        validate_password(data['new_password1'], self.user)
-        return data  
+            if data['new_password1'] != data['new_password2']:
+                raise serializers.ValidationError({'new_password2': _("Las Contraseñas no coinciden")})
+            validate_password(data['new_password1'], self.user)
+
+            return data
+
+        raise serializers.ValidationError("Debe Enviar Nuevamente su Correo de Reset")
+
+
        
     def create(self, validated_data, **kwargs):
         password = validated_data['new_password1']
         self.user.set_password(password)
+        self.user.reset_password="False"
         self.user.save()
         return self.user
